@@ -6,31 +6,17 @@
 ########################################
 
 import pandas as pd
-import numpy as np
 import matplotlib.pyplot as plt
 plt.style.use('ggplot')
-from sklearn.model_selection import train_test_split
-from sklearn.ensemble import RandomForestRegressor
-from sklearn.model_selection import train_test_split
+from matplotlib_venn import venn2, venn3
+from itertools import combinations
 
-from numpy import genfromtxt
-import csv 
-# from matplotlib_venn import venn3
-# from matplotlib_venn import venn2
-# import venn
-
-# ExtraTreesClassifier imports
-from sklearn.ensemble import ExtraTreesClassifier
-from sklearn.datasets import make_classification
-
-# Recursive Feature Selection imports
-from sklearn.feature_selection import RFE
-from sklearn.svm import SVR
-
-# ANOVA imports
-from sklearn.feature_selection import SelectKBest, f_classif
-
-from utils.utils import *
+from utils.utils import prepare_baseline_data
+from utils.anova import Run_ANOVA
+from utils.etc import Run_ETC
+from utils.rfe import Run_RFE
+from utils.rf import run_rf
+from utils.lasso import Run_Lasso
 
 # In[2]:
 ########################################
@@ -60,16 +46,8 @@ taxa_dict = {
     "species": sp_df_list
 }
 
+
 # In[3]:
-########################################
-###
-###             Functions
-###
-########################################
-
-# please see the utils.py file for the functions
-
-# In[4]:
 ########################################
 ###
 ###       Merge Metadata Preprocessing
@@ -91,7 +69,7 @@ for col in merge_meta_df.columns:
 # for i in merge_meta_df.columns:
 #     print(i)
 
-# In[5]:
+# In[4]:
 ########################################
 ###
 ###      Taxa Data Preprocessing
@@ -105,7 +83,7 @@ for taxa, taxa_df_list in taxa_dict.items():
         baseline_data = prepare_baseline_data(df)
         taxa_dict[taxa][idx] = baseline_data
 
-# In[6]:    
+# In[5]:    
 ########################################
 ###
 ###             Data Cleaning
@@ -137,7 +115,7 @@ for taxa, taxa_df_list in taxa_dict.items():
 #         print(f"Taxa: {taxa}, Index: {idx}")
 #         print(df.dtypes)
 
-# In[7]:
+# In[6]:
 ########################################
 ###
 ###             Data Merging
@@ -151,44 +129,69 @@ for taxa, taxa_df_list in taxa_dict.items():
 y = merge_meta_df['differences_BL_BMI']
 X = taxa_dict['genus'][0].iloc[:, 1:] # remove the subjectid column
 
-print(X.shape)
-print(y.shape)
+# Set the number of top features you want to select
+n_to_select = 100  # Adjust this number as needed
+seed = 42  
 
-print(X.head())
-print(X.dtypes)
-print(y)
+# Run Random Forest
+top_features_rf, rf_model = run_rf(n_to_select, X, y, test_size=0.3, random_state=seed) 
+print("Top features from Random Forest:", top_features_rf)
 
-# Assuming y and X are already defined as per your provided code
+# Run Extra Trees Classifier
+top_features_et, etc_model = Run_ETC(n_to_select, X, y, seed_value=seed)  # Example seed value
+print("Top features from Extra Trees Classifier:", top_features_et)
 
-# Split the dataset
-X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.3, random_state=42)
+# Run Recursive Feature Elimination
+top_features_rfe, rfe_model = Run_RFE(n_to_select, X, y, flip=False)  # Set flip as needed
+print("Top features from RFE:", top_features_rfe)
 
-# Train the Random Forest model
-rf = RandomForestRegressor(n_estimators=100, random_state=42)
-rf.fit(X_train, y_train)
+# Run ANOVA
+top_features_anova, anova_model = Run_ANOVA(n_to_select, X, y, flip=True)  # Set flip as needed
+print("Top features from ANOVA:", top_features_anova)
 
-# Evaluate the model
-accuracy_before = rf.score(X_test, y_test)
-print(f'R^2 Score before feature selection: {accuracy_before:.2f}')
+# Run Lasso
+top_features_lasso, lasso_model = Run_Lasso(n_to_select, X, y, flip=True, seed=seed)  # Set flip as needed
+print("Top features from Lasso:", top_features_lasso)
 
-# Extract feature importances
-importances = rf.feature_importances_
-feature_names = X.columns
-feature_importance_df = pd.DataFrame({'Feature': feature_names, 'Importance': importances})
+# In[7]:
+########################################
+###
+###             Plotting
+###
+########################################
 
-# Rank features by importance
-feature_importance_df = feature_importance_df.sort_values(by='Importance', ascending=False)
-print(feature_importance_df)
+# Example feature sets (replace these with your actual top feature lists)
+top_features_rf = set(top_features_rf)  # Random Forest
+top_features_et = set(top_features_et)  # Extra Trees Classifier
+top_features_rfe = set(top_features_rfe)  # RFE
+top_features_anova = set(top_features_anova)  # ANOVA
+top_features_lasso = set(top_features_lasso)  # Lasso
 
-# Select top N features (example selecting top 10 features)
-top_features = feature_importance_df['Feature'][:10].values
-X_train_selected = X_train[top_features]
-X_test_selected = X_test[top_features]
 
-# Train the Random Forest model with selected features
-rf_selected = RandomForestRegressor(n_estimators=100, random_state=42)
-rf_selected.fit(X_train_selected, y_train)
+# Put feature sets in a dictionary
+feature_sets = {
+    'Random Forest': top_features_rf,
+    'Extra Trees': top_features_et,
+    'RFE': top_features_rfe,
+    'ANOVA': top_features_anova,
+    'Lasso': top_features_lasso
+}
 
-# Evaluate the model
-accuracy_after = rf_selected.score(X_test_selected, y_test)
-print(f'R^2 Score after feature selection: {accuracy_after:.2f}')
+# Create a figure with subplots (adjust size and layout to fit all diagrams)
+fig, axes = plt.subplots(5, 4, figsize=(20, 25))  # 5 rows, 4 columns for 20 combinations
+axes = axes.flatten()
+
+# Pairwise Venn Diagrams
+pairwise_combos = list(combinations(feature_sets.keys(), 2))
+for i, (set1, set2) in enumerate(pairwise_combos):
+    venn2([feature_sets[set1], feature_sets[set2]], set_labels=(set1, set2), ax=axes[i])
+
+# Triple Venn Diagrams
+triple_combos = list(combinations(feature_sets.keys(), 3))
+for i, (set1, set2, set3) in enumerate(triple_combos, len(pairwise_combos)):
+    venn3([feature_sets[set1], feature_sets[set2], feature_sets[set3]], set_labels=(set1, set2, set3), ax=axes[i])
+
+# Adjust layout and save the figure
+plt.tight_layout()
+plt.savefig('figures/venn_diagram.png')
+plt.show()
