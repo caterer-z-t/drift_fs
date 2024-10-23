@@ -4,7 +4,7 @@
 
 ``` bash
 deactivate
-module load python
+module load python/3.10.2
 module load anaconda 
 module load R/4.4.0
 conda activate stanislawski_lab
