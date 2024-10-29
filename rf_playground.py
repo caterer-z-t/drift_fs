@@ -1,14 +1,17 @@
 # In[1]: Import Libraries
 import pandas as pd
+from pathlib import Path
 import matplotlib.pyplot as plt
 plt.style.use('ggplot')
 from matplotlib_venn import venn2, venn3
 from itertools import combinations
 from tqdm import tqdm
+from pycaret.regression import *
+import os
 import time
-# import pycaret 
+import shutil
 
-from utils.utils import prepare_baseline_data
+from utils.utils import prepare_baseline_data, merge_dataframes, keep_columns
 from utils.anova import Run_ANOVA
 from utils.etc import Run_ETC
 from utils.rfe import Run_RFE
@@ -16,66 +19,90 @@ from utils.rf import run_rf
 from utils.lasso import Run_Lasso
 
 # In[2]: Load Data
-base_file_path = "/home/zaca2954/iq_bio/stanislawski_lab/stanislawski_lab_data/"
 
-# drift_metadata = pd.read_csv(base_file_path + "DRIFT_working_dataset_meta_deltas_filtered_05.21.2024.csv")
-merge_meta_df = pd.read_csv(base_file_path + "merge_meta_methyl.csv") # is the merged dataset with the drift information
+# Get the directory of the current script and append the relative path to stanislawski_lab_data
+base_file_path = (Path(__file__).parent / "../stanislawski_lab_data").resolve()
 
-genus_clr_df = pd.read_csv(base_file_path + "genus.clr.csv")
+# Load Data
+drift_metadata = pd.read_csv(base_file_path / "DRIFT_working_dataset_meta_deltas_filtered_05.21.2024.csv")
+merge_meta_df = pd.read_csv(base_file_path / "merge_meta_methyl.csv")
+genus_clr_df = pd.read_csv(base_file_path / "genus.clr.csv")
 
 # removing these datasets becuase the count df and ra df are just transformations to aquire the clr df
-# genus_count_df = pd.read_csv(base_file_path + "genus.count.csv")
-# genus_ra_df = pd.read_csv(base_file_path + "genus.ra.csv")
+genus_count_df = pd.read_csv(base_file_path / "genus.count.csv")
+genus_ra_df = pd.read_csv(base_file_path / "genus.ra.csv")
 
 # removing the specices df because we want to focus on the analysis of the genus data for now, could include this later
-# sp_clr_df = pd.read_csv(base_file_path + "sp.clr.csv")
-# sp_count_df = pd.read_csv(base_file_path + "sp.count.csv")
-# sp_ra_df = pd.read_csv(base_file_path + "sp.ra.csv")
+sp_clr_df = pd.read_csv(base_file_path / "sp.clr.csv")
+sp_count_df = pd.read_csv(base_file_path / "sp.count.csv")
+sp_ra_df = pd.read_csv(base_file_path / "sp.ra.csv")
 
 genus_df_list = [
     genus_clr_df,
-    # genus_count_df,
-    # genus_ra_df
+    genus_count_df,
+    genus_ra_df
     ]
-# sp_df_list = [sp_clr_df, sp_count_df, sp_ra_df]
+sp_df_list = [sp_clr_df, sp_count_df, sp_ra_df]
 
 taxa_dict = {
     "genus": genus_df_list,
-    # "species": sp_df_list
+    "species": sp_df_list
 }
 
 # In[3]: Data Preprocessing
-# remove all the columns containing ['3m', '6m', '12m', '18m']
-# this is because this is the timeseries data and for right now
-# we only have the baseline data
-for col in merge_meta_df.columns:
-    if any(x in col for x in ['3m', '6m', '12m', '18m',
+
+# remove row if conset was no
+merge_meta_df = merge_meta_df[merge_meta_df['consent'] == 'yes']
+
+# remove columns
+remove_columns = ['3m', '6m', '12m', '18m',
                               'PC', 'pc', 'bug', 'array', 'sex.y', 'age.y',
                               'cohort', 'race.y', 'ethnicity.y', 'timepoint', 'duplicate_sample', 
                               'SampleID', 'outcome_bmi_current', 'sample_name', 'sentrix', 'mrs.wt', 'mrs.std.wt', 'start_treatment', 
-                              'withdrawal_date_check']): # have I removed anything I shouldn't have?
-        merge_meta_df = merge_meta_df.drop(columns=[col])
+                              'withdrawal_date_check']
 
-# TODO: Include code here to add metadata columns to the dataframes
-# which could be potiential predictors for the model
+# columns to use
+columns = [
+    'subject_id',
+    'gender',      # what are these values, they are currently binary 
+    'age.x', 
+    'race.x',       # what are these values, they are numerical before preprocessing?
+    # 'race_fact',   # these are the same but these values are categorical
+    'ethnicity.x', # what are these values, they are numerical before preprocessing?
+    'education',   # what are these values, they are numerical before preprocessing?
+    # 'job_activity',   # what are these values, they are numerical before preprocessing?
+    # 'income',         # what are these values, they are numerical before preprocessing?
+    # 'marital_status', # what are these values, they are numerical before preprocessing?
+    "height_inches",
+    'rmr_kcald_BL',
+    'spk_EE_int_kcal_day_BL',
+    'avg_systolic_BL',
+    'avg_diastolic_BL',
+    'C_Reactive_Protein_BL',
+    'Cholesterol_lipid_BL',
+    'Ghrelin_BL',
+    'Glucose_BL',
+    'HDL_Total_Direct_lipid_BL',
+    'Hemoglobin_A1C_BL',
+    'Insulin_endo_BL',
+    'LDL_Calculated_BL',
+    'Leptin_BL',
+    'Peptide_YY_BL',
+    'Triglyceride_lipid_BL',
+    'HOMA_IR_BL',
+    'differences_BL_BMI'
+    ]
 
-# TODO: Normalize the data
+merge_meta_df = keep_columns(merge_meta_df, columns)
 
 for taxa, taxa_df_list in taxa_dict.items():
-
     for idx, df in enumerate(taxa_df_list):
+        data = merge_dataframes(df, merge_meta_df)
 
-        baseline_data = prepare_baseline_data(df)
-        taxa_dict[taxa][idx] = baseline_data
-
-        # include code here to remove the unconsenting paitents
-        # remove this code if we want to include the unconsenting patients
-        # consenting_patients = baseline_data['consent'] == 1
-        # taxa_dict[taxa][idx] = baseline_data[consenting_patients]
-        # print(f"Taxa: {taxa}, Dataset: {idx}, Shape: {baseline_data.shape}")
+        # overwrite the taxa_df_list with the new data
+        taxa_df_list[idx] = data
 
 # In[4]: Feature Selection (Previous Methods) Wrtiting scripts to make sure they work
-
 # our X data is each of the taxa dataframes
 # our y data is the merge_meta_df['differences_BL_BMI']
 # merge_meta_df['differences_BL_BMI'] is the target variable
@@ -97,8 +124,9 @@ for taxa, taxa_df_list in tqdm(taxa_dict.items(), desc="Taxa Progress", unit="ta
         # Create a dictionary for this specific dataset
         feature_selection_results[taxa][dataset_name] = {}
         
-        y = merge_meta_df['differences_BL_BMI']
-        X = df.iloc[:, 1:]  # Assuming you want to exclude the first column (subjectid)
+        y = df['differences_BL_BMI']
+        df = df.drop(columns=['differences_BL_BMI'])
+        X = df.drop(columns=['subject_id']).dropna(axis=1)
 
         # Set the number of top features you want to select
         n_to_select = 100  # Adjust as needed
@@ -114,46 +142,31 @@ for taxa, taxa_df_list in tqdm(taxa_dict.items(), desc="Taxa Progress", unit="ta
             ], desc=f"{dataset_name} Feature Selection", unit="method", leave=False):
             
             if method_name == 'Random Forest':
-                rf_start = time.time()
                 top_features, model = func(n_to_select, X, y, test_size=0.3, random_state=seed)
-                rf_end = time.time()
-                rf_time = rf_end - rf_start
 
             elif method_name == 'Extra Trees':
-                et_start = time.time()
                 top_features, model = func(n_to_select, X, y, seed_value=seed)
-                et_end = time.time()
-                et_time = et_end - et_start
 
             elif method_name == 'RFE':
-                rfe_start = time.time()
                 top_features, model = func(n_to_select, X, y, flip=False)
-                rfe_end = time.time()
-                rfe_time = rfe_end - rfe_start
 
             elif method_name == 'ANOVA':
-                anova_start = time.time()
                 top_features, model = func(n_to_select, X, y, flip=True)
-                anova_end = time.time()
-                anova_time = anova_end - anova_start
 
             elif method_name == 'Lasso':
-                lasso_start = time.time()
                 top_features, model = func(n_to_select, X, y, flip=True, seed=seed)
-                lasso_end = time.time()
-                lasso_time = lasso_end - lasso_start
 
             # Store the top features for each method
             feature_selection_results[taxa][dataset_name][method_name] = top_features
 
             # Store the time taken for each method
-            feature_selection_results[taxa][dataset_name][f"{method_name}_time"] = {
-                'Random Forest': rf_time,
-                'Extra Trees': et_time,
-                'RFE': rfe_time,
-                'ANOVA': anova_time,
-                'Lasso': lasso_time
-            }
+            # feature_selection_results[taxa][dataset_name][f"{method_name}_time"] = {
+            #     'Random Forest': rf_time,
+            #     'Extra Trees': et_time,
+            #     'RFE': rfe_time,
+            #     'ANOVA': anova_time,
+            #     'Lasso': lasso_time
+            # }
 
         # Plotting Venn Diagrams
         # Extract top features for each method
@@ -182,4 +195,59 @@ for taxa, taxa_df_list in tqdm(taxa_dict.items(), desc="Taxa Progress", unit="ta
         plt.savefig(f'figures/venn_diagram_{dataset_name}.png')  # Save with dataset name
         # plt.show()  # Show the plot
 
+
 # In[5]: Using pycaret for feature selection
+
+for taxa, taxa_df_list in taxa_dict.items():
+    for idx, df in enumerate(taxa_df_list):
+        # running pycaret analysis on dataset with latent information
+        latent_setup = setup(df,
+                      target = 'differences_BL_BMI',
+                      session_id = 123, 
+                      # feature_selection = True,
+                      # fold = 5, # default is 10
+                      # preprocess = False, 
+                      # imputation_type = 'iterative',
+                      # normalize = True,
+        )
+        # comparing all models
+        best_model = compare_models()
+        plot_model(best_model, plot = 'feature', save = True)
+
+        # wait for the plot to save
+        wait_time = 5
+        print(f"Waiting for {wait_time} seconds for the plot to save")
+        time.sleep(wait_time)
+
+        # move the saved plot to the figures folder
+        shutil.move("Feature Importance.png", f"figures/feature_selection_{taxa}_{idx}_latent.png")
+
+        # now run same analysis without latent information
+        for col in df.columns:
+            contains_underscore = [col for col in df.columns if '__' in col]
+        contains_underscore.append('differences_BL_BMI')
+        df = df[contains_underscore]
+
+        # running pycaret analysis on dataset with latent information
+        no_latent_setup = setup(df,
+                      target = 'differences_BL_BMI',
+                      session_id = 123, 
+                      # feature_selection = True,
+                      # fold = 5, # default is 10
+                      # preprocess = False, 
+                      # imputation_type = 'iterative',
+                      # normalize = True,
+        )
+        # comparing all models
+        best_model = compare_models()
+        plot_model(best_model, plot = 'feature', save = True)
+
+        # wait for the plot to save
+        wait_time = 5
+        print(f"Waiting for {wait_time} seconds for the plot to save")
+        time.sleep(wait_time)
+
+        # move the saved plot to the figures folder
+        shutil.move("Feature Importance.png", f"figures/feature_selection_{taxa}_{idx}.png")
+
+

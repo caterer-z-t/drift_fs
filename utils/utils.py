@@ -1,3 +1,4 @@
+import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
 plt.style.use('ggplot')
@@ -57,3 +58,38 @@ def select_top_features(sorted_indices, n_to_select):
 def flip_indices_if_needed(indices, flip):
     """Flip the indices array if specified."""
     return np.flip(indices) if flip else indices
+
+def merge_dataframes(genus, meta):
+    """Merge the genus and metadata dataframes.
+
+    Args:
+        genus (dataframe): Genus or species data. 
+        meta (dataframe): Metadata.
+
+    Returns:
+        dataframe: Merged dataframe.
+    """
+    # modify genus data sampleid names
+    genus[['subject_id', 'time_series']] = genus['SampleID'].str.split('.', expand=True)    
+    
+    # Filter genus_clr_df for rows where 'time_series' is 'BL' (baseline data)
+    genus = genus[genus['time_series'] == 'BL']
+    genus.drop(columns=['SampleID', 'time_series'], inplace=True)
+    
+    # merge the two dataframes on the sample_id column
+    merged_df = pd.merge(meta, genus, on='subject_id', how='inner')
+    merged_df.drop(columns=['subject_id'], inplace=True)
+    
+    return merged_df
+
+def remove_columns_from_df(dataframe, columns):
+    """Remove columns from the dataframe."""
+    for col in dataframe.columns:
+        if any(x in col for x in columns): 
+            dataframe = dataframe.drop(columns=[col])
+
+    return dataframe
+
+def keep_columns(dataframe, columns):
+    """Keep only the specified columns in the dataframe."""
+    return dataframe[columns]
