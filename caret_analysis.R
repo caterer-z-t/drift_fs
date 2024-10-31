@@ -120,7 +120,11 @@ beta_no_latent <- extract_best_betas(
   list(results_no_latent$lasso_model, results_no_latent$ridge_model, results_no_latent$enet_model),
   c("Lasso_Beta", "Ridge_Beta", "Enet_Beta")
 )
+print(head(feature_importance_no_latent))
 
 # In[11]: Save Results without Latent ----
+
 write.csv(feature_importance_no_latent, "drift_fs/csv/feature_importance_no_latent.csv", row.names = FALSE)
 write.csv(beta_no_latent, "drift_fs/csv/beta_no_latent.csv", row.names = FALSE)
+
+# In[12]: End ----
