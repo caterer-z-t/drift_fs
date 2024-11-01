@@ -7,15 +7,16 @@ library(reshape2)
 library(dplyr)
 
 # In[2]: Import data ----
+base_path <- "/Users/zc/Library/CloudStorage/OneDrive-TheUniversityofColoradoDenver/Stanislawski_Lab/"
 file_paths <- list(
-    importance_latent = "/Users/zc/Library/CloudStorage/OneDrive-TheUniversityofColoradoDenver/Stanislawski_Lab/drift_fs/csv/feature_importance_latent.csv",
-    importance_no_latent = "/Users/zc/Library/CloudStorage/OneDrive-TheUniversityofColoradoDenver/Stanislawski_Lab/drift_fs/csv/feature_importance_no_latent.csv",
-    beta_latent = "/Users/zc/Library/CloudStorage/OneDrive-TheUniversityofColoradoDenver/Stanislawski_Lab/drift_fs/csv/beta_latent.csv",
-    beta_no_latent = "/Users/zc/Library/CloudStorage/OneDrive-TheUniversityofColoradoDenver/Stanislawski_Lab/drift_fs/csv/beta_no_latent.csv"
+    importance_latent = "drift_fs/csv/feature_importance_latent.csv",
+    importance_no_latent = "drift_fs/csv/feature_importance_no_latent.csv",
+    beta_latent = "drift_fs/csv/beta_latent.csv",
+    beta_no_latent = "drift_fs/csv/beta_no_latent.csv"
 )
 
 # Read all data into a list
-data_list <- lapply(file_paths, read.csv)
+data_list <- lapply(paste0(base_path, file_paths), read.csv)
 
 # In[3]: Data Manipulation ----
 calculate_importance <- function(df) {
@@ -110,6 +111,7 @@ plot_beta_values <- function(df_latent, df_no_latent, title_prefix) {
         coord_flip() +
         facet_wrap(~Type) +
         theme_minimal() +
+        theme(axis.text.y = element_text(size = 2)) +
         labs(title = paste(title_prefix, "Beta Values"), x = "Features", y = "Beta Value")
     ggsave(paste0("drift_fs/figures/beta_", tolower(gsub(" ", "_", title_prefix)), ".png"), plot = p, dpi = 600, bg = "white")
 
@@ -117,6 +119,7 @@ plot_beta_values <- function(df_latent, df_no_latent, title_prefix) {
         geom_bar(stat = "identity", position = "dodge") +
         coord_flip() +
         theme_minimal() +
+        theme(axis.text.y = element_text(size = 2)) +
         labs(title = paste(title_prefix, "Beta Values with Latent Variables"), x = "Features", y = "Beta Value")
     ggsave(paste0("drift_fs/figures/beta_latent", ".png"), plot = p_latent, dpi = 600, bg = "white")
 
@@ -124,6 +127,7 @@ plot_beta_values <- function(df_latent, df_no_latent, title_prefix) {
         geom_bar(stat = "identity", position = "dodge") +
         coord_flip() +
         theme_minimal() +
+        theme(axis.text.y = element_text(size = 2)) +
         labs(title = paste(title_prefix, "Beta Values without Latent Variables"), x = "Features", y = "Beta Value")
     ggsave(paste0("drift_fs/figures/beta_no_latent", ".png"), plot = p_no_latent, dpi = 600, bg = "white")
 }

@@ -1,16 +1,8 @@
-###############################################
-###
-###               Imports
-###
-###############################################
+# In[1]: Imports ----
 
 library(tools)
 
-###############################################
-###
-###               Functions
-###
-###############################################
+# In[2]: Functions ----
 
 # Function to load RData file into a new environment and return the environment
 load_rdata <- function(file_path) {
@@ -50,11 +42,7 @@ save_env_to_csv <- function(env, output_dir) {
     }
 }
 
-###############################################
-###
-###               Beta Diversity Data
-###
-###############################################
+# In[3]: Beta diversity Data ----
 
 # Define file paths and directories
 base_file_path <- "/home/zaca2954/iq_bio/stanislawski_lab/stanislawski_lab_data/"
@@ -67,11 +55,7 @@ env <- load_rdata(file.path(base_file_path, file_name))
 # Save all data frames/matrices to CSV files
 save_env_to_csv(env, output_dir)
 
-###############################################
-###
-###               Genus and Species Data
-###
-###############################################
+# In[4]: Taxa Data ----
 
 # Load another RData file for taxa data and save to CSV
 genus_tables <- '/home/zaca2954/iq_bio/stanislawski_lab/DRIFT2/Data/Clean16S/Genus_Sp_tables.RData'
