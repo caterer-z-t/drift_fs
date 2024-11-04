@@ -1,4 +1,5 @@
 # In[1]: Imports ----
+rm(list = ls())
 
 library(tools)
 

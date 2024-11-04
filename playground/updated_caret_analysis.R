@@ -10,7 +10,21 @@ library(tibble)
 
 # In[2]: Data Imports ----
 genus_clr_latent <- read_csv("/Users/zc/Library/CloudStorage/OneDrive-TheUniversityofColoradoDenver/Stanislawski_Lab/drift_fs/csv/genus_clr_latent.csv")
+updated_analysis <- read_csv("/Users/zc/Library/CloudStorage/OneDrive-TheUniversityofColoradoDenver/Stanislawski_Lab/drift_fs/csv/grs.diff_110324.csv")
+print(head(genus_clr_latent))
+print(head(updated_analysis))
 
+# Check for duplicates in genus_clr_latent
+sum(duplicated(genus_clr_latent$subject_id))
+
+# Check for duplicates in updated_analysis
+sum(duplicated(updated_analysis$subject_id))
+
+
+# In[2.1]: innerjoing the updated analysis with the genus_clr_latent
+genus_clr_latent <- inner_join(genus_clr_latent, updated_analysis, by = "subject_id")
+
+print(head(genus_clr_latent))
 # In[3]: Functions ----
 
 remove_columns <- function(data, columns_to_remove) {
