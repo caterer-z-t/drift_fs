@@ -11,17 +11,19 @@ library(tibble)
 library(stringr)
 library(psych)
 library(randomForest)
-# library(glmnet)
+library(glmnet)
 
-install.packages('glmnet')
+# install.packages('glmnet')
 
 # In[2]: Data Imports ----
+base_path <- base_path_locally <- '/Users/zc/Library/CloudStorage/OneDrive-TheUniversityofColoradoDenver/Stanislawski_Lab/drift_fs/csv/'
+# base_path <- base_path_fiji <- "/Users/zaca2954/stanislawski_lab/drift_fs/csv/"
 
-updated_analysis <- read_csv("/Users/zaca2954/stanislawski_lab/drift_fs/csv/grs.diff_110324.csv")
-genus_clr_data <- read_csv("/Users/zaca2954/stanislawski_lab/stanislawski_lab_data/genus.clr.csv")
-species_clr_data <- read_csv("/Users/zaca2954/stanislawski_lab/stanislawski_lab_data/sp.clr.csv")
-merge_metadata <- read_csv("/Users/zaca2954/stanislawski_lab/stanislawski_lab_data/merge_meta_methyl.csv")
-metadata <- read_csv("/Users/zaca2954/stanislawski_lab/stanislawski_lab_data/DRIFT_working_dataset_meta_deltas_filtered_05.21.2024.csv")
+updated_analysis <- read_csv(paste0(base_path, "grs.diff_110324.csv"))
+genus_clr_data <- read_csv(paste0(base_path, "genus.clr.csv"))
+species_clr_data <- read_csv(paste0(base_path, "sp.clr.csv"))
+merge_metadata <- read_csv(paste0(base_path, "merge_meta_methyl.csv"))
+metadata <- read_csv(paste0(base_path, "/DRIFT_working_dataset_meta_deltas_filtered_05.21.2024.csv"))
 
 # In[3]: Functions ----
 
@@ -210,12 +212,14 @@ species_clr_latent <- species_clr_data %>% select(all_of(latent_variables_to_use
 
 columns_to_remove <- c("subject_id", 'differences_BL_BMI')
 columns_to_standardize <- c(
-  "gender", "age", "race", "ethnicity", "education",
+  "sex", "gender", "age", "race", "ethnicity", "education",
   "rmr_kcald_BL", "spk_EE_int_kcal_day_BL", "avg_systolic_BL",
   "avg_diastolic_BL", "C_Reactive_Protein_BL", "Cholesterol_lipid_BL",
   "Ghrelin_BL", "Glucose_BL", "HDL_Total_Direct_lipid_BL",
   "Hemoglobin_A1C_BL", "Insulin_endo_BL", "LDL_Calculated_BL",
-  "Leptin_BL", "Peptide_YY_BL", "Triglyceride_lipid_BL", "HOMA_IR_BL"
+  "Leptin_BL", "Peptide_YY_BL", "Triglyceride_lipid_BL", "HOMA_IR_BL",
+  "WBTOT_FAT_BL", "WBTOT_LEANmass_BL", "WBTOT_BMC_BL",
+  "WBTOT_Lean_BMC_BL", "WBTOT_PFAT_BL", "WBTOT_PLEAN_BL"
 )
 
 genus_clr_latent_cleaned <- remove_columns(genus_clr_latent, columns_to_remove)
