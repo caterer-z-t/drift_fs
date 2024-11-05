@@ -110,6 +110,9 @@ print(head(beta_latent))
 write.csv(feature_importance_latent, "drift_fs/csv/feature_importance_latent.csv", row.names = FALSE)
 write.csv(beta_latent, "drift_fs/csv/beta_latent.csv", row.names = FALSE)
 
+# save the models
+saveRDS(results_latent, "drift_fs/models/results_latent.rds")
+
 # In[9]: Model Training without Latent Variables ----
 genus_clr_latent_cleaned_no_latent <- remove_columns(genus_clr_latent_standardized, columns_to_standardize)
 results_no_latent <- train_all_models(genus_clr_latent_cleaned_no_latent, "differences_BL_BMI", train_control)
@@ -126,5 +129,8 @@ print(head(feature_importance_no_latent))
 
 write.csv(feature_importance_no_latent, "drift_fs/csv/feature_importance_no_latent.csv", row.names = FALSE)
 write.csv(beta_no_latent, "drift_fs/csv/beta_no_latent.csv", row.names = FALSE)
+
+# save the models
+saveRDS(results_no_latent, "drift_fs/models/results_no_latent.rds")
 
 # In[12]: End ----
