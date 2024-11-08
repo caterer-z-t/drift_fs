@@ -338,6 +338,44 @@ plot_beta_values <- function(beta_top_features, figurename = "beta_values.png") 
     ggsave(paste0("drift_fs/figures/", figurename), dpi = 600, bg = "white")
 }
 
+plot_performance_metrics <- function(metrics, dataset_name) {
+    # Assuming dataset_list$latent$metrics contains the performance metrics for each model and dataset type
+    # Reshape the data into long format
+    metrics_long <- metrics %>%
+        pivot_longer(
+            cols = c("R2", "MAE", "RMSE"),
+            names_to = "Metric",
+            values_to = "Value"
+        )
+
+    # Reorder the factor levels so that 'Train' comes before 'Test' and metrics are grouped
+    metrics_long$DataType <- factor(metrics_long$DataType, levels = c("Train", "Test"))
+    metrics_long$Metric <- factor(metrics_long$Metric, levels = c("R2", "MAE", "RMSE"))
+
+    # Plot the grouped metrics for each model with two bars for Train and Test
+    ggplot(metrics_long, aes(x = Model, y = Value, fill = DataType)) +
+        geom_bar(stat = "identity", position = position_dodge(width = 0.8), width = 0.7) + # Position bars side-by-side
+        labs(
+            title = paste("Model Performance Metrics (R², MAE, RMSE) -", dataset_name),
+            x = "Model",
+            y = "Metric Value",
+            fill = "Dataset"
+        ) +
+        scale_fill_viridis(discrete = TRUE) + # Apply Viridis color palette
+        facet_wrap(~Metric, scales = "free_y", nrow = 3) + # Create separate subfigures for each metric
+        theme_minimal() +
+        theme(
+            axis.text.x = element_text(angle = 45, hjust = 1), # Rotate model names for better readability
+            axis.text.y = element_text(size = 10), # Adjust y-axis text size
+            strip.text = element_text(size = 12), # Adjust facet label size
+            legend.position = "top", # Place the legend on top
+            axis.title.x = element_text(size = 12), # X-axis title size
+            axis.title.y = element_text(size = 12) # Y-axis title size
+        )
+
+    ggsave(paste0("drift_fs/figures/", paste0(dataset_name, "_performance_metrics.png")), dpi = 600, bg = "white")
+}
+
 # Function to process data and generate plots for a dataset
 process_and_plot_data <- function(data_list, dataset_name, n = 20) {
     beta <- data_list$beta
@@ -373,6 +411,8 @@ process_and_plot_data <- function(data_list, dataset_name, n = 20) {
 
     # Plot beta values with dataset name included in the filename
     plot_importance_or_beta(beta_top_features, "Beta", "Top Feature Beta Values by Model", "Feature", paste0(dataset_name, "_beta_values.png"))
+
+    plot_performance_metrics(metrics, dataset_name)
 }
 
 # Apply the process_and_plot_data function to each dataset
@@ -408,38 +448,3 @@ dataset_list <- list(
 lapply(names(dataset_list), function(dataset_name) {
     process_and_plot_data(dataset_list[[dataset_name]], dataset_name)
 })
-
-
-
-# Assuming dataset_list$latent$metrics contains the performance metrics for each model and dataset type
-# Reshape the data into long format
-metrics_long <- dataset_list$latent$metrics %>%
-    pivot_longer(
-        cols = c("R2", "MAE", "RMSE"),
-        names_to = "Metric",
-        values_to = "Value"
-    )
-
-# Reorder the factor levels so that 'Train' comes before 'Test' and metrics are grouped
-metrics_long$DataType <- factor(metrics_long$DataType, levels = c("Train", "Test"))
-metrics_long$Metric <- factor(metrics_long$Metric, levels = c("R2", "MAE", "RMSE"))
-
-# Plot the grouped metrics for each model with Viridis color theme
-ggplot(metrics_long, aes(x = Model, y = Value, fill = Metric)) +
-    geom_bar(stat = "identity", position = "dodge", width = 0.7) +
-    facet_wrap(~Metric, scales = "free_y", ncol = 1) + # One panel per metric (R2, MAE, RMSE)
-    labs(
-        title = "Model Performance Metrics (R², MAE, RMSE)",
-        x = "Model",
-        y = "Metric Value",
-        fill = "Metric"
-    ) +
-    scale_fill_viridis(discrete = TRUE) + # Apply Viridis color palette
-    theme_minimal() +
-    theme(
-        axis.text.x = element_text(angle = 45, hjust = 1), # Rotate model names for better readability
-        axis.text.y = element_text(size = 10), # Adjust y-axis text size
-        strip.text = element_text(size = 12), # Adjust facet label size
-        legend.position = "top" # Place the legend on top
-    )
-

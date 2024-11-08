@@ -1,23 +1,23 @@
 # TODO
 
-todo, without wbtot's
+- [x] todo, without wbtot's
 
-w/o anything below wbtot's
+- [x] w/o anything below wbtot's
 
-add cohort
+- [x] add cohort
 
-include ensemble model
+include ensemble model -- there are a bunch of different ensemble models, which ones do we want to include?
 
-include xgboost
+- [x] include xgboost or other boost models
 
-do some venn diagrams (yay), choose top 20 for now
+- [x] do some venn diagrams (yay), choose top 20 for now
 
-plot the same beta values identified in feature selection
+- [x] plot the same beta values identified in feature selection
 
-get performance metrics (R2, MAE, RMSE, etc.) 
+- [x] get performance metrics (R2, MAE, RMSE, etc.) 
 
-inlcude these metrics in the testing and training data, compare them to one another
+- [x] inlcude these metrics in the testing and training data, compare them to one another
 
 include perarson / spearman correlation between taxa if there is significant correlation (heatmap of clr / ra data)
 
-include just the latent factors in the model to se
+- [x] include just the latent factors in the model to se
