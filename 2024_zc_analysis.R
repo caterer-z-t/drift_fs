@@ -54,20 +54,7 @@ save_env_to_csv <- function(env, output_dir) {
     }
 }
 
-# In[3]: Beta diversity Data ----
-
-# Define file paths and directories
-base_file_path <- "/home/zaca2954/iq_bio/stanislawski_lab/stanislawski_lab_data/"
-file_name <- "BetaDiversity_DMs.RData"
-output_dir <- "/home/zaca2954/iq_bio/stanislawski_lab/output" # Define output directory
-
-# Load the RData file into a new environment
-env <- load_rdata(file.path(base_file_path, file_name))
-
-# Save all data frames/matrices to CSV files
-save_env_to_csv(env, output_dir)
-
-# In[4]: Taxa Data ----
+# In[3]: Taxa Data ----
 # Load another RData file for taxa data and save to CSV
 genus_tables <- "/home/zaca2954/iq_bio/stanislawski_lab/DRIFT2/Data/Clean16S/Genus_Sp_tables.RData"
 env_taxa <- load_rdata(genus_tables)
@@ -162,6 +149,45 @@ extract_columns <- function(data, columns_to_extract = NULL, pattern = NULL) {
     # Return data with the selected columns
     return(data)
 }
+
+# Python function definition
+py_run_string("
+import re
+
+order = ['d__', 'p__', 'c__', 'o__', 'f__', 'g__', 's__']
+def rename_columns_species_to_domain(dataframe):
+    # Try to get the lowest level of taxonomy
+    # If the lowest level is not present, then get the next lowest level
+
+    # Get the columns of the dataframe
+    columns = dataframe.columns
+
+    # Get all the columns containing all levels of taxonomy (starting with 'd__')
+    species_columns = [column for column in columns if column.startswith('d__')]
+
+    for column in species_columns:
+        # split by _{any single letter}__
+        split_column = re.split(r'_[a-z]__', column)
+        split_column[0] = split_column[0].split('d__')[1]
+
+        # remove the elements of the list that are empty
+        split_column = [x for x in split_column if x]
+
+        # the length of the split_column will be the lowest level of taxonomy
+        order_index = len(split_column) - 1
+
+        #join the split_column to get the lowest level of taxonomy
+        new_column_name = order[order_index] + split_column[-1]
+
+        # rename the column
+        dataframe.rename(columns={column: new_column_name}, inplace=True)
+
+    # Return dataframe without any changes for now
+    return dataframe
+")
+
+# Access the Python function from R
+rename_columns_species_to_domain <- py$rename_columns_species_to_domain
 
 # In[4]: Data Preprocessing ----
 
@@ -269,48 +295,6 @@ species_clr_latent_unclean <- extract_columns(
     pattern = "__"
 )
 print(colnames(genus_clr_latent_unclean))
-
-library(reticulate)
-
-# Python function definition
-py_run_string("
-import re
-
-order = ['d__', 'p__', 'c__', 'o__', 'f__', 'g__', 's__']
-def rename_columns_species_to_domain(dataframe):
-    # Try to get the lowest level of taxonomy
-    # If the lowest level is not present, then get the next lowest level
-
-    # Get the columns of the dataframe
-    columns = dataframe.columns
-
-    # Get all the columns containing all levels of taxonomy (starting with 'd__')
-    species_columns = [column for column in columns if column.startswith('d__')]
-
-    for column in species_columns:
-        # split by _{any single letter}__
-        split_column = re.split(r'_[a-z]__', column)    
-        split_column[0] = split_column[0].split('d__')[1]
-
-        # remove the elements of the list that are empty
-        split_column = [x for x in split_column if x]
-
-        # the length of the split_column will be the lowest level of taxonomy
-        order_index = len(split_column) - 1
-
-        #join the split_column to get the lowest level of taxonomy
-        new_column_name = order[order_index] + split_column[-1]
-
-        # rename the column
-        dataframe.rename(columns={column: new_column_name}, inplace=True)
-
-    # Return dataframe without any changes for now
-    return dataframe
-")
-
-# Access the Python function from R
-rename_columns_species_to_domain <- py$rename_columns_species_to_domain
-
 # Apply the function to your dataframe
 genus_clr_latent_clean <- rename_columns_species_to_domain(genus_clr_latent_unclean)
 species_clr_latent_clean <- rename_columns_species_to_domain(species_clr_latent_unclean)
