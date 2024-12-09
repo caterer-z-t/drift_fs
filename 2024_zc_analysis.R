@@ -14,6 +14,34 @@
 rm(list = ls())
 
 library(tools)
+library(reticulate)
+library(viridis)
+library(tidyplots)
+library(tidyverse)
+library(patchwork) # For combining ggplot figures
+library(jsonlite)
+library(maps)
+library(sf)
+library(ggvenn)
+library(caret)
+library(caretEnsemble)
+library(readr)
+library(plyr)
+library(dplyr)
+library(tidyr)
+library(purrr)
+library(tibble)
+library(stringr)
+library(psych)
+library(randomForest)
+library(glmnet)
+library(xgboost)
+library(ggplot2)
+library(reshape2)
+library(scales)
+library(gridExtra)
+library(plotly)
+
 
 # In[2]: Functions ----
 
@@ -56,8 +84,10 @@ save_env_to_csv <- function(env, output_dir) {
 
 # In[3]: Taxa Data ----
 # Load another RData file for taxa data and save to CSV
-genus_tables <- "/home/zaca2954/iq_bio/stanislawski_lab/DRIFT2/Data/Clean16S/Genus_Sp_tables.RData"
+genus_tables <- "/pl/active/Stanislabski/DRIFT2/Data/Clean16S/Genus_Sp_tables.RData"
 env_taxa <- load_rdata(genus_tables)
+
+output_dir <- "drift_fs/csv/unprocessed_data"
 save_env_to_csv(env_taxa, output_dir)
 
 
@@ -67,31 +97,20 @@ save_env_to_csv(env_taxa, output_dir)
 ###
 ###############################
 
-# In[1]: Imports ----
-
-rm(list = ls())
-
-library(readr)
-library(plyr)
-library(dplyr)
-library(tidyr)
-library(purrr)
-library(tibble)
-library(stringr)
-library(reticulate)
-
 # In[2]: Data Imports ----
 
-base_path <- base_path_locally <- "/Users/zc/Library/CloudStorage/OneDrive-TheUniversityofColoradoDenver/Stanislawski_Lab/drift_fs/csv/"
-# base_path <- base_path_fiji <- "/Users/zaca2954/stanislawski_lab/drift_fs/csv/"
+# Define the base path for the data files
+zc_pl_dir <- "/pl/active/Stanislabski/DRIFT2/Data/Zac_IQ"
+local_path <- "drift_fs/csv/unprocessed_data/"
 
-updated_analysis <- read_csv(paste0(base_path, "grs.diff_110324.csv"))
-genus_clr_data <- read_csv(paste0(base_path, "genus.clr.csv"))
-species_clr_data <- read_csv(paste0(base_path, "sp.clr.csv"))
-merge_metadata <- read_csv(paste0(base_path, "merge_meta_methyl.csv"))
-metadata <- read_csv(paste0(base_path, "/DRIFT_working_dataset_meta_deltas_filtered_05.21.2024.csv"))
+updated_analysis <- read_csv(paste0(zc_pl_dir, "grs.diff_110324.csv"))
+genus_clr_data <- read_csv(paste0(local_path, "genus.clr.csv"))
+species_clr_data <- read_csv(paste0(local_path, "sp.clr.csv"))
+merge_metadata <- read_csv(paste0(zc_pl_dir, "merge_meta_methyl.csv"))
+metadata <- read_csv(paste0(zc_pl_dir, "DRIFT_working_dataset_meta_deltas_filtered_05.21.2024.csv"))
 
 # In[3]: Functions ----
+
 make_new_columns <- function(data, column_name) {
     data <- data %>%
         mutate(
@@ -295,6 +314,7 @@ species_clr_latent_unclean <- extract_columns(
     pattern = "__"
 )
 print(colnames(genus_clr_latent_unclean))
+
 # Apply the function to your dataframe
 genus_clr_latent_clean <- rename_columns_species_to_domain(genus_clr_latent_unclean)
 species_clr_latent_clean <- rename_columns_species_to_domain(species_clr_latent_unclean)
@@ -304,7 +324,7 @@ print(colnames(genus_clr_latent_clean))
 print(colnames(species_clr_latent_clean))
 
 # save these dataframes
-save_dir <- "/Users/zc/Library/CloudStorage/OneDrive-TheUniversityofColoradoDenver/Stanislawski_Lab/drift_fs/csv/processed_data/"
+save_dir <- "drift_fs/csv/processed_data/"
 
 write.csv(genus_clr_latent_clean, paste0(save_dir, "genus_latent.csv"), row.names = FALSE)
 write.csv(species_clr_latent_clean, paste0(save_dir, "species_latent.csv"), row.names = FALSE)
@@ -316,73 +336,14 @@ write.csv(species_clr_latent_clean, paste0(save_dir, "species_latent.csv"), row.
 ###
 ###############################
 
-# In[1] Imports ----
-
-rm(list = ls())
-
-library(caret)
-library(caretEnsemble)
-library(readr)
-library(plyr)
-library(dplyr)
-library(tidyr)
-library(purrr)
-library(tibble)
-library(stringr)
-library(psych)
-library(randomForest)
-library(glmnet)
-library(xgboost)
-
-# code from drift_fs/playground/figure_playground.R
-# Load required libraries
-library(ggplot2)
-library(reshape2)
-library(scales)
-library(VennDiagram)
-library(viridis)
-library(gridExtra)
-library(plotly)
-
 # In[2] Load Datasets ----
 
-data_dir <- "/Users/zc/Library/CloudStorage/OneDrive-TheUniversityofColoradoDenver/Stanislawski_Lab/drift_fs/csv/processed_data/"
+data_dir <- "drift_fs/csv/processed_data/"
 
 species_df <- read_csv(paste0(data_dir, "species_latent.csv"))
 genus_df <- read_csv(paste0(data_dir, "genus_latent.csv"))
 
 # In[3] Functions ----
-
-make_new_columns <- function(data, column_name) {
-    data <- data %>%
-        mutate(
-            subject_id = str_split(column_name, "\\.", simplify = TRUE)[, 1],
-            TIMEPOINT = str_split(column_name, "\\.", simplify = TRUE)[, 2]
-        )
-    return(data)
-}
-
-filter_data <- function(data, column, value) {
-    data <- data %>%
-        filter(column == value)
-    return(data)
-}
-
-remove_columns <- function(data, columns_to_remove = NULL, pattern = NULL) {
-    # Remove specified columns if provided
-    if (!is.null(columns_to_remove)) {
-        # Ensure only existing columns are removed
-        columns_to_remove <- intersect(columns_to_remove, names(data))
-        data <- data %>% select(-all_of(columns_to_remove))
-    }
-
-    # Remove columns matching the pattern if provided
-    if (!is.null(pattern)) {
-        data <- data %>% select(-matches(pattern))
-    }
-
-    return(data)
-}
 
 process_data <- function(data, columns_to_remove, columns_to_standardize, impute_method = "medianImpute") {
     data_cleaned <- remove_columns(data, columns_to_remove)
@@ -514,15 +475,19 @@ train_and_save_models <- function(data, target_var, train_control, result_prefix
         list(results$rf_model, results$lasso_model, results$ridge_model, results$elastic_net_model, results$xgb_model),
         c("RF_Importance", "Lasso_Importance", "Ridge_Importance", "Enet_Importance", "XGBoost_Importance")
     )
+    # ensure output directory exists
+    if (!dir.exists("drift_fs/csv/results/")) {
+        dir.create("drift_fs/csv/results/", recursive = TRUE)
+    }
 
-    write.csv(feature_importance, paste0("drift_fs/csv/", result_prefix, "_feature_importance.csv"), row.names = FALSE)
+    write.csv(feature_importance, paste0("drift_fs/csv/results/", result_prefix, "_feature_importance.csv"), row.names = FALSE)
 
     # Extract best betas
     beta_coefficients <- extract_best_betas(
         list(results$lasso_model, results$ridge_model, results$elastic_net_model),
         c("Lasso_Beta", "Ridge_Beta", "Enet_Beta")
     )
-    write.csv(beta_coefficients, paste0("drift_fs/csv/", result_prefix, "_beta.csv"), row.names = FALSE)
+    write.csv(beta_coefficients, paste0("drift_fs/csv/results/", result_prefix, "_beta.csv"), row.names = FALSE)
 
     # Initialize an empty DataFrame to store performance metrics
     metrics_df <- data.frame(Model = character(), DataType = character(), R2 = numeric(), MAE = numeric(), RMSE = numeric(), stringsAsFactors = FALSE)
@@ -541,8 +506,12 @@ train_and_save_models <- function(data, target_var, train_control, result_prefix
     }
 
     # Save the metrics DataFrame as CSV
-    write.csv(metrics_df, paste0("drift_fs/csv/", result_prefix, "_metrics.csv"), row.names = FALSE)
+    write.csv(metrics_df, paste0("drift_fs/csv/results/", result_prefix, "_metrics.csv"), row.names = FALSE)
 
+    # ensure the model directory exists
+    if (!dir.exists("drift_fs/models/")) {
+        dir.create("drift_fs/models/", recursive = TRUE)
+    }
     # Save model results
     saveRDS(results, paste0("drift_fs/models/", result_prefix, "_results.rds"))
 
@@ -617,8 +586,8 @@ species_results <- train_and_save_models(
 
 # In[7] Remove columns that have missing data from clr datasets ----
 
-genus_ra_df <- read_csv(paste0(data_dir, "../genus.ra.csv"))
-sp_ra_df <- read_csv(paste0(data_dir, "../sp.ra.csv"))
+genus_ra_df <- read_csv(paste0(data_dir, "../unprocessed_data/genus.ra.csv"))
+sp_ra_df <- read_csv(paste0(data_dir, "../unprocessed_data/sp.ra.csv"))
 
 genus_ra_df <- make_new_columns(genus_ra_df, genus_ra_df$SampleID)
 genus_ra_df <- filter_data(genus_ra_df, genus_ra_df$TIMEPOINT, "BL")
@@ -705,7 +674,7 @@ species_results_no_latent <- train_and_save_models(
 # In[8] pathway analysis ----
 
 # Load the pathway data
-pathway_df <- read_tsv(paste0(data_dir, "../path_abun/path_abun_unstrat.tsv"))
+pathway_df <- read_tsv(paste0(zc_pl_dir, "path_abun_unstrat.tsv"))
 
 # extract only the latent variables from the genus_df_imputed
 genus_df_imputed <- genus_df_imputed %>%
@@ -778,22 +747,6 @@ pathway_df_no_latent_results <- train_and_save_models(
 ###     Figure Analysis
 ###
 ###############################
-
-# In[1]: Import libraries ----
-
-rm(list = ls())
-
-# Load required libraries
-library(ggplot2)
-library(reshape2)
-library(tidyr)
-library(scales)
-library(dplyr)
-library(VennDiagram)
-library(viridis)
-library(tidyplots)
-library(tidyverse)
-library(patchwork) # For combining ggplot figures
 
 # In[2]: Functions ----
 
@@ -940,8 +893,170 @@ process_and_plot_data <- function(data_list, dataset_name, n = 20) {
     plot_performance_metrics(metrics, dataset_name)
 }
 
+# Function to add points and recalculate regression
+generate_plot <- function(x, y, modified_x = NULL, modified_y = NULL) {
+    # Create the data frame
+    plot_data <- data.frame(x = x, y = y)
+
+    # Add modified points if provided
+    if (!is.null(modified_x) && !is.null(modified_y)) {
+        modified_data <- data.frame(x = modified_x, y = modified_y)
+        plot_data <- rbind(plot_data, modified_data)
+    }
+
+    # Fit the linear regression model
+    model <- lm(y ~ x, data = plot_data)
+    r_squared <- summary(model)$r.squared
+
+    # Generate the base plot
+    p <- ggplot(plot_data, aes(x = x, y = y)) +
+        geom_point(aes(color = ifelse(x %in% modified_x, "Modified", "Original")), size = 5) +
+        scale_color_manual(values = c("Original" = "#1C7C54", "Modified" = "red")) +
+        theme_minimal() +
+        xlim(0, max(plot_data$x)) +
+        ylim(min(plot_data$y) - 2, max(plot_data$y) + 2) +
+        theme(
+            legend.position = "none",
+            axis.text.x = element_text(size = 20),
+            axis.text.y = element_text(size = 20),
+            axis.ticks.length = unit(0.3, "cm"), # Adjust tick size
+            axis.title.x = element_text(size = 22, face = "bold"), # Larger x-axis title
+            axis.title.y = element_text(size = 22, face = "bold") # Larger y-axis title
+        )
+
+    # Add regression line and R² annotation
+    p1 <- p +
+        geom_smooth(method = "lm", se = TRUE, color = "black", fill = "gray", alpha = 0.5) +
+        annotate("text",
+            x = max(plot_data$x) - 2, y = mean(plot_data$y),
+            label = paste("R² =", round(r_squared, 2)),
+            color = "black", size = 8
+        )
+
+    # Return both plots in a list
+    return(list(base_plot = p, regression_plot = p1))
+}
+
+# Define a function to create plots
+create_plots <- function(data_list, max_r2, titles) {
+    plots <- lapply(seq_along(data_list), function(i) {
+        ggplot(data_list[[i]], aes(x = R2, y = Model, fill = Model)) +
+            geom_bar(stat = "identity", position = "dodge") +
+            labs(
+                title = titles[i],
+                x = "R²",
+                y = "Model",
+                fill = "Model"
+            ) +
+            coord_cartesian(xlim = c(0, max_r2)) +
+            theme_minimal() +
+            scale_fill_viridis_d() +
+            theme(
+                axis.text.x = element_text(angle = 45, hjust = 1, size = 15),
+                axis.text.y = element_text(size = 15, angle = 45),
+                legend.position = "none",
+                axis.title.x = element_text(size = 20),
+                axis.title.y = element_text(size = 20),
+                plot.title = element_text(size = 20)
+            )
+    })
+    # Combine the plots vertically
+    Reduce(`/`, plots)
+}
+
+# Updated function to create and save plots
+create_feature_plot <- function(features, title, save_path) {
+    # Prepare data for plotting, excluding the `Model` column from pivoting
+    features_long <- features %>%
+        pivot_longer(
+            cols = c(-Variable), # Exclude `Variable` and `Model`
+            names_to = "Model",
+            values_to = "Importance"
+        )
+
+    # Create the plot
+    feature_plot <- ggplot(features_long, aes(x = Importance, y = reorder(Variable, Importance), fill = Model)) +
+        geom_bar(stat = "identity", position = "dodge") +
+        labs(
+            title = title,
+            x = "Importance",
+            y = "Feature",
+            fill = "Model"
+        ) +
+        scale_fill_viridis_d() +
+        theme_minimal() +
+        theme(
+            axis.text.x = element_text(size = 13),
+            axis.text.y = element_text(size = 13),
+            axis.title.x = element_text(size = 15),
+            axis.title.y = element_text(size = 15),
+            title = element_text(size = 15),
+            legend.position = "top"
+        )
+
+    # Print and save the plot
+    print(feature_plot)
+    ggsave(save_path, plot = feature_plot, dpi = 600, bg = "white")
+}
+
+# Function to extract top features
+extract_top_features <- function(dataset, top_n = 10) {
+    # Extract columns ending with '_Importance'
+    importance_columns <- names(dataset$feature_importance) %>%
+        grep("_Importance$", ., value = TRUE)
+
+    # Check if importance columns exist
+    if (length(importance_columns) == 0) {
+        stop("No columns ending with '_Importance' found in feature_importance.")
+    }
+
+    # get a column with the total importance
+    dataset$feature_importance <- dataset$feature_importance %>%
+        mutate(Total_Importance = rowSums(select(., ends_with("_Importance")), na.rm = TRUE))
+    
+    # sort by total importance from high to low
+    dataset$feature_importance <- dataset$feature_importance %>%
+        arrange(desc(Total_Importance))
+    
+    # get the top n features
+    top_features <- dataset$feature_importance %>%
+        select(Variable, Total_Importance) %>%
+        head(10)
+    
+    # remove the total importance column
+    dataset$feature_importance <- select(dataset$feature_importance, -Total_Importance) %>% head(10)
+
+    return(dataset$feature_importance)
+}
+# Function to get top 20 features for each model
+get_top_features <- function(dataset, model_name, importance_col) {
+    dataset$feature_importance %>%
+        select(Variable, all_of(importance_col)) %>%
+        arrange(desc(get(importance_col))) %>%
+        head(20)
+}
+
+# Extract top 20 features for each model and dataset
+get_features_for_dataset <- function(dataset_name) {
+    dataset <- datasets[[dataset_name]]
+    map2(
+        model_names, model_names_map_to,
+        ~ get_top_features(dataset, .x, .y)
+    ) %>%
+        set_names(model_names)
+}
+
+# Function to get top models based on R²
+get_top_models <- function(dataset, top_n = 3) {
+    dataset$metrics %>%
+        filter(DataType == "Test") %>%
+        arrange(desc(R2)) %>%
+        slice_head(n = top_n) %>%
+        pull(Model)
+}
+
 # In[3]: Define base path and file paths ----
-base_path <- "/Users/zc/Library/CloudStorage/OneDrive-TheUniversityofColoradoDenver/Stanislawski_Lab/drift_fs/csv/results/20241205"
+base_path <- "/drift_fs/csv/results/"
 
 # Define file paths in a structured list
 file_paths <- list(
@@ -1079,12 +1194,6 @@ print(top_20_features)
 
 # In[6]: world map obesity plot ----
 
-library(jsonlite)
-library(dplyr)
-library(ggplot2)
-library(maps)
-library(sf)
-
 # Fetch the data
 df <- read.csv("https://ourworldindata.org/grapher/share-of-adults-defined-as-obese.csv?v=1&csvType=full&useColumnShortNames=true")
 
@@ -1132,55 +1241,9 @@ ggplot(map_data, aes(long, lat,
     theme_minimal() +
     theme(axis.text = element_blank(), axis.ticks = element_blank(), axis.title.x = element_blank(), axis.title.y = element_blank(), axis.title = element_blank())
 
-# ggsave("drift_fs/figures/world_map_obesity.png", height = 6, width = 12, dpi = 600, bg = "white")
+ggsave("drift_fs/figures/world_map_obesity.png", height = 6, width = 12, dpi = 600, bg = "white")
 
 # In[8]: Showing how linear regression works ----
-# Load necessary libraries
-library(ggplot2)
-
-# Function to add points and recalculate regression
-generate_plot <- function(x, y, modified_x = NULL, modified_y = NULL) {
-    # Create the data frame
-    plot_data <- data.frame(x = x, y = y)
-
-    # Add modified points if provided
-    if (!is.null(modified_x) && !is.null(modified_y)) {
-        modified_data <- data.frame(x = modified_x, y = modified_y)
-        plot_data <- rbind(plot_data, modified_data)
-    }
-
-    # Fit the linear regression model
-    model <- lm(y ~ x, data = plot_data)
-    r_squared <- summary(model)$r.squared
-
-    # Generate the base plot
-    p <- ggplot(plot_data, aes(x = x, y = y)) +
-        geom_point(aes(color = ifelse(x %in% modified_x, "Modified", "Original")), size = 5) +
-        scale_color_manual(values = c("Original" = "#1C7C54", "Modified" = "red")) +
-        theme_minimal() +
-        xlim(0, max(plot_data$x)) +
-        ylim(min(plot_data$y) - 2, max(plot_data$y) + 2) +
-        theme(
-            legend.position = "none",
-            axis.text.x = element_text(size = 20),
-            axis.text.y = element_text(size = 20),
-            axis.ticks.length = unit(0.3, "cm"), # Adjust tick size
-            axis.title.x = element_text(size = 22, face = "bold"), # Larger x-axis title
-            axis.title.y = element_text(size = 22, face = "bold") # Larger y-axis title
-        )
-
-    # Add regression line and R² annotation
-    p1 <- p +
-        geom_smooth(method = "lm", se = TRUE, color = "black", fill = "gray", alpha = 0.5) +
-        annotate("text",
-            x = max(plot_data$x) - 2, y = mean(plot_data$y),
-            label = paste("R² =", round(r_squared, 2)),
-            color = "black", size = 8
-        )
-
-    # Return both plots in a list
-    return(list(base_plot = p, regression_plot = p1))
-}
 
 # Step 1: Generate initial data
 set.seed(123)
@@ -1246,33 +1309,6 @@ max_r2_species <- max(sapply(species_results, function(res) res$max_r2))
 # Calculate global max R² across all categories
 max_r2 <- max(max_r2_genus, max_r2_pathway, max_r2_species)
 
-# Define a function to create plots
-create_plots <- function(data_list, max_r2, titles) {
-    plots <- lapply(seq_along(data_list), function(i) {
-        ggplot(data_list[[i]], aes(x = R2, y = Model, fill = Model)) +
-            geom_bar(stat = "identity", position = "dodge") +
-            labs(
-                title = titles[i],
-                x = "R²",
-                y = "Model",
-                fill = "Model"
-            ) +
-            coord_cartesian(xlim = c(0, max_r2)) +
-            theme_minimal() +
-            scale_fill_viridis_d() +
-            theme(
-                axis.text.x = element_text(angle = 45, hjust = 1, size = 15),
-                axis.text.y = element_text(size = 15, angle = 45),
-                legend.position = "none",
-                axis.title.x = element_text(size = 20),
-                axis.title.y = element_text(size = 20),
-                plot.title = element_text(size = 20)
-            )
-    })
-    # Combine the plots vertically
-    Reduce(`/`, plots)
-}
-
 # Prepare data and titles for genus
 genus_data_list <- list(genus_results[[1]]$metrics, genus_results[[2]]$metrics, genus_results[[3]]$metrics)
 print(genus_data_list)
@@ -1289,7 +1325,7 @@ genus_titles <- c(
 # Generate combined genus plot
 combined_plot_genus <- create_plots(genus_data_list, max_r2, genus_titles)
 print(combined_plot_genus)
-ggsave("drift_fs/figures/presentation_figures/genus_combined_plot.png", plot = combined_plot_genus, dpi = 600, bg = "white")
+ggsave("drift_fs/figures/genus_combined_plot.png", plot = combined_plot_genus, dpi = 600, bg = "white")
 
 # Prepare data and titles for species
 species_data_list <- list(species_results[[1]]$metrics, species_results[[2]]$metrics, species_results[[3]]$metrics)
@@ -1307,7 +1343,7 @@ species_data_list[[3]]$Model <- c("Lasso", "Ridge", "Elastic Net", "Random Fores
 # Generate combined species plot
 combined_plot_species <- create_plots(species_data_list, max_r2, species_titles)
 print(combined_plot_species)
-ggsave("drift_fs/figures/presentation_figures/species_combined_plot.png", plot = combined_plot_species, dpi = 600, bg = "white")
+ggsave("drift_fs/figures/species_combined_plot.png", plot = combined_plot_species, dpi = 600, bg = "white")
 
 # Prepare data and titles for pathway
 pathway_data_list <- list(pathway_results[[1]]$metrics, pathway_results[[2]]$metrics, pathway_results[[3]]$metrics)
@@ -1325,80 +1361,16 @@ pathway_data_list[[3]]$Model <- c("Lasso", "Ridge", "Elastic Net", "Random Fores
 # Generate combined pathway plot
 combined_plot_pathway <- create_plots(pathway_data_list, max_r2, pathway_titles)
 print(combined_plot_pathway)
-ggsave("drift_fs/figures/presentation_figures/pathway_combined_plot.png", plot = combined_plot_pathway, dpi = 600, bg = "white")
+ggsave("drift_fs/figures/pathway_combined_plot.png", plot = combined_plot_pathway, dpi = 600, bg = "white")
 
 # because of this plot we will hence forth use the
 # genus no rendundant
 # pathway
 # species no rendundant
+
 # In[10]: Plotting the top 5-10 features ----
 
 # Load required libraries
-
-# Updated function to create and save plots
-create_feature_plot <- function(features, title, save_path) {
-    # Prepare data for plotting, excluding the `Model` column from pivoting
-    features_long <- features %>%
-        pivot_longer(
-            cols = c(-Variable), # Exclude `Variable` and `Model`
-            names_to = "Model",
-            values_to = "Importance"
-        )
-
-    # Create the plot
-    feature_plot <- ggplot(features_long, aes(x = Importance, y = reorder(Variable, Importance), fill = Model)) +
-        geom_bar(stat = "identity", position = "dodge") +
-        labs(
-            title = title,
-            x = "Importance",
-            y = "Feature",
-            fill = "Model"
-        ) +
-        scale_fill_viridis_d() +
-        theme_minimal() +
-        theme(
-            axis.text.x = element_text(size = 13),
-            axis.text.y = element_text(size = 13),
-            axis.title.x = element_text(size = 15),
-            axis.title.y = element_text(size = 15),
-            title = element_text(size = 15),
-            legend.position = "top"
-        )
-
-    # Print and save the plot
-    print(feature_plot)
-    ggsave(save_path, plot = feature_plot, dpi = 600, bg = "white")
-}
-
-# Function to extract top features
-extract_top_features <- function(dataset, top_n = 10) {
-    # Extract columns ending with '_Importance'
-    importance_columns <- names(dataset$feature_importance) %>%
-        grep("_Importance$", ., value = TRUE)
-
-    # Check if importance columns exist
-    if (length(importance_columns) == 0) {
-        stop("No columns ending with '_Importance' found in feature_importance.")
-    }
-
-    # get a column with the total importance
-    dataset$feature_importance <- dataset$feature_importance %>%
-        mutate(Total_Importance = rowSums(select(., ends_with("_Importance")), na.rm = TRUE))
-    
-    # sort by total importance from high to low
-    dataset$feature_importance <- dataset$feature_importance %>%
-        arrange(desc(Total_Importance))
-    
-    # get the top n features
-    top_features <- dataset$feature_importance %>%
-        select(Variable, Total_Importance) %>%
-        head(10)
-    
-    # remove the total importance column
-    dataset$feature_importance <- select(dataset$feature_importance, -Total_Importance) %>% head(10)
-
-    return(dataset$feature_importance)
-}
 
 # Extract top features from each dataset
 genus_no_rendundant_features <- extract_top_features(datasets[["Genus (No Redundant)"]])
@@ -1453,32 +1425,22 @@ species_no_rendundant_features <- species_no_rendundant_features %>%
 create_feature_plot(
     genus_no_rendundant_features,
     "Top 10 Features - Non Redundant Genus + Clinical Variables",
-    "drift_fs/figures/presentation_figures/genus_no_rendundant_feature_plot.png"
+    "drift_fs/figures/genus_no_rendundant_feature_plot.png"
 )
 
 create_feature_plot(
     pathway_features,
     "Top 10 Features - All Pathways + Clinical Variables",
-    "drift_fs/figures/presentation_figures/pathway_feature_plot.png"
+    "drift_fs/figures/pathway_feature_plot.png"
 )
 
 create_feature_plot(
     species_no_rendundant_features,
     "Top 10 Features - Non Redundant Species + Clinical Variables",
-    "drift_fs/figures/presentation_figures/species_no_rendundant_feature_plot.png"
+    "drift_fs/figures/species_no_rendundant_feature_plot.png"
 )
 
 # In[12]: Plotting the venn diagrams of the top features ----
-library(VennDiagram)
-library(ggvenn)
-# Function to get top models based on R²
-get_top_models <- function(dataset, top_n = 3) {
-    dataset$metrics %>%
-        filter(DataType == "Test") %>%
-        arrange(desc(R2)) %>%
-        slice_head(n = top_n) %>%
-        pull(Model)
-}
 
 # Extract top models for each dataset
 datasets_names <- c("Genus (No Redundant)", "Pathway", "Species (No Redundant)")
@@ -1492,24 +1454,6 @@ print(top_models_list)
 # Map for model names and feature importance columns
 model_names <- c("lasso_model", "ridge_model", "elastic_net_model")
 model_names_map_to <- c("Lasso_Importance", "Ridge_Importance", "Enet_Importance")
-
-# Function to get top 20 features for each model
-get_top_features <- function(dataset, model_name, importance_col) {
-    dataset$feature_importance %>%
-        select(Variable, all_of(importance_col)) %>%
-        arrange(desc(get(importance_col))) %>%
-        head(20)
-}
-
-# Extract top 20 features for each model and dataset
-get_features_for_dataset <- function(dataset_name) {
-    dataset <- datasets[[dataset_name]]
-    map2(
-        model_names, model_names_map_to,
-        ~ get_top_features(dataset, .x, .y)
-    ) %>%
-        set_names(model_names)
-}
 
 # Get top features for each dataset
 top_features_list <- datasets_names %>%
@@ -1534,7 +1478,7 @@ ggvenn(
     text_size = 10, set_name_size = 15
 )
 
-ggsave("drift_fs/figures/presentation_figures/genus_venn_diagrams.png", dpi = 600, bg = "white")
+ggsave("drift_fs/figures/genus_venn_diagrams.png", dpi = 600, bg = "white")
 
 species_lasso <- top_features_list[["Species (No Redundant)"]]$lasso_model$Variable
 species_enet <- top_features_list[["Species (No Redundant)"]]$elastic_net_model$Variable
@@ -1548,7 +1492,7 @@ ggvenn(
     show_percentage = FALSE,
     text_size = 10, set_name_size = 15
 ) 
-ggsave("drift_fs/figures/presentation_figures/species_venn_diagrams.png", dpi = 600, bg = "white")
+ggsave("drift_fs/figures/species_venn_diagrams.png", dpi = 600, bg = "white")
 
 pathway_lasso <- top_features_list[["Pathway"]]$lasso_model$Variable
 pathway_enet <- top_features_list[["Pathway"]]$elastic_net_model$Variable
@@ -1562,5 +1506,5 @@ ggvenn(
     show_percentage = FALSE,
     text_size = 10, set_name_size = 15
 )
-ggsave("drift_fs/figures/presentation_figures/pathways_venn_diagrams.png", dpi = 600, bg = "white")
+ggsave("drift_fs/figures/pathways_venn_diagrams.png", dpi = 600, bg = "white")
 
