@@ -326,6 +326,11 @@ print(colnames(species_clr_latent_clean))
 # save these dataframes
 save_dir <- "drift_fs/csv/processed_data/"
 
+# check if the directory exists
+if (!dir.exists(save_dir)) {
+    dir.create(save_dir, recursive = TRUE)
+}
+
 write.csv(genus_clr_latent_clean, paste0(save_dir, "genus_latent.csv"), row.names = FALSE)
 write.csv(species_clr_latent_clean, paste0(save_dir, "species_latent.csv"), row.names = FALSE)
 
