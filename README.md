@@ -40,8 +40,9 @@ drift_fs/
 │   ├── results/
 │   └── unprocessed_data/
 ├── figures/
-├── models/
-└── 2024_zc_analysis.R
+└── models/
+
+- 2024_zc_analysis.R
 ```
 
 ### Necessary Libraries
@@ -71,22 +72,24 @@ library(viridis)
 library(gridExtra)
 library(plotly)
 library(tidyplots)
-library(tidyverse)
 library(patchwork) 
 library(ggvenn)
 library(jsonlite)
 library(maps)
+
+# difficult packages
+library(tidyverse)
 library(sf)
 ```
 
 ## Necessary Datasets
 The following datasets are integral to the analysis:
 
-- `Genus_Sp_tables.RData`
-- `merge_meta_methyl.csv`
-- `DRIFT_working_dataset_meta_deltas_filtered_05.21.2024.csv`
-- `grs.diff_110324.csv`
-- `path_abun_unstrat.tsv`
+- `Genus_Sp_tables.RData`: located in `/pl/active/Stanislabski/DRIFT2/Data/Clean16S`
+- `merge_meta_methyl.csv`: located in `/pl/active/Stanislabski/DRIFT2/Data/Zac_IQ`
+- `DRIFT_working_dataset_meta_deltas_filtered_05.21.2024.csv`:  located in `/pl/active/Stanislabski/DRIFT2/Data/Zac_IQ`
+- `grs.diff_110324.csv`:  located in `/pl/active/Stanislabski/DRIFT2/Data/Zac_IQ`
+- `path_abun_unstrat.tsv`:  located in `/pl/active/Stanislabski/DRIFT2/Data/Zac_IQ`
 
 # Section Explanation: Reading and Converting R Data Files
 
@@ -259,6 +262,9 @@ Below is a summary of the functions used to generate the figures:
 
 - **`process_and_plot_data()`**  
   Processes the specified datasets and saves the corresponding figures.
+  
+- **``**
+  
 
 ## Final Notes
 This section provides a centralized approach for figure generation, ensuring all visualizations are accessible and editable within a single script. While some functions are preliminary and not optimized for polished outputs, they serve as useful tools for exploratory data visualization. Future improvements may involve refining these functions for broader use in presentations and publications.

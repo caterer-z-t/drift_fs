@@ -17,11 +17,9 @@ library(tools)
 library(reticulate)
 library(viridis)
 library(tidyplots)
-library(tidyverse)
-library(patchwork) # For combining ggplot figures
+library(patchwork)
 library(jsonlite)
 library(maps)
-library(sf)
 library(ggvenn)
 library(caret)
 library(caretEnsemble)
@@ -42,6 +40,9 @@ library(scales)
 library(gridExtra)
 library(plotly)
 
+# difficult packages
+library(sf)
+library(tidyverse)
 
 # In[2]: Functions ----
 
@@ -100,7 +101,7 @@ save_env_to_csv(env_taxa, output_dir)
 # In[2]: Data Imports ----
 
 # Define the base path for the data files
-zc_pl_dir <- "/pl/active/Stanislabski/DRIFT2/Data/Zac_IQ"
+zc_pl_dir <- "/pl/active/Stanislabski/DRIFT2/Data/Zac_IQ/"
 local_path <- "drift_fs/csv/unprocessed_data/"
 
 updated_analysis <- read_csv(paste0(zc_pl_dir, "grs.diff_110324.csv"))
@@ -170,43 +171,75 @@ extract_columns <- function(data, columns_to_extract = NULL, pattern = NULL) {
 }
 
 # Python function definition
-py_run_string("
-import re
-
-order = ['d__', 'p__', 'c__', 'o__', 'f__', 'g__', 's__']
-def rename_columns_species_to_domain(dataframe):
-    # Try to get the lowest level of taxonomy
-    # If the lowest level is not present, then get the next lowest level
-
-    # Get the columns of the dataframe
-    columns = dataframe.columns
-
-    # Get all the columns containing all levels of taxonomy (starting with 'd__')
-    species_columns = [column for column in columns if column.startswith('d__')]
-
-    for column in species_columns:
-        # split by _{any single letter}__
-        split_column = re.split(r'_[a-z]__', column)
-        split_column[0] = split_column[0].split('d__')[1]
-
-        # remove the elements of the list that are empty
-        split_column = [x for x in split_column if x]
-
-        # the length of the split_column will be the lowest level of taxonomy
-        order_index = len(split_column) - 1
-
-        #join the split_column to get the lowest level of taxonomy
-        new_column_name = order[order_index] + split_column[-1]
-
-        # rename the column
-        dataframe.rename(columns={column: new_column_name}, inplace=True)
-
-    # Return dataframe without any changes for now
-    return dataframe
-")
+# py_run_string("
+# import re
+# 
+# order = ['d__', 'p__', 'c__', 'o__', 'f__', 'g__', 's__']
+# def rename_columns_species_to_domain(dataframe):
+#     # Try to get the lowest level of taxonomy
+#     # If the lowest level is not present, then get the next lowest level
+# 
+#     # Get the columns of the dataframe
+#     columns = dataframe.columns
+# 
+#     # Get all the columns containing all levels of taxonomy (starting with 'd__')
+#     species_columns = [column for column in columns if column.startswith('d__')]
+# 
+#     for column in species_columns:
+#         # split by _{any single letter}__
+#         split_column = re.split(r'_[a-z]__', column)
+#         split_column[0] = split_column[0].split('d__')[1]
+# 
+#         # remove the elements of the list that are empty
+#         split_column = [x for x in split_column if x]
+# 
+#         # the length of the split_column will be the lowest level of taxonomy
+#         order_index = len(split_column) - 1
+# 
+#         #join the split_column to get the lowest level of taxonomy
+#         new_column_name = order[order_index] + split_column[-1]
+# 
+#         # rename the column
+#         dataframe.rename(columns={column: new_column_name}, inplace=True)
+# 
+#     # Return dataframe without any changes for now
+#     return dataframe
+# ")
 
 # Access the Python function from R
-rename_columns_species_to_domain <- py$rename_columns_species_to_domain
+# rename_columns_species_to_domain <- py$rename_columns_species_to_domain
+
+# chatgpt translation of the python function
+rename_columns_species_to_domain <- function(dataframe) {
+  # Define the order of taxonomic levels
+  order <- c("d__", "p__", "c__", "o__", "f__", "g__", "s__")
+  
+  # Get all column names
+  columns <- colnames(dataframe)
+  
+  # Filter columns starting with 'd__'
+  species_columns <- columns[grepl("^d__", columns)]
+  
+  # Loop through each species column
+  for (column in species_columns) {
+    # Split by '_{any single letter}__'
+    split_column <- unlist(strsplit(column, "_[a-z]__"))
+    split_column[1] <- sub("d__", "", split_column[1]) # Remove 'd__' prefix
+    
+    # Remove empty elements
+    split_column <- split_column[split_column != ""]
+    
+    # Get the lowest level of taxonomy
+    order_index <- length(split_column) - 1
+    new_column_name <- paste0(order[order_index + 1], split_column[length(split_column)])
+    
+    # Rename the column in the data frame
+    colnames(dataframe)[colnames(dataframe) == column] <- new_column_name
+  }
+  
+  return(dataframe)
+}
+
 
 # In[4]: Data Preprocessing ----
 
@@ -603,6 +636,10 @@ sp_ra_df <- filter_data(sp_ra_df, sp_ra_df$TIMEPOINT, "BL")
 genus_ra_df <- remove_columns(genus_ra_df, c("SampleID", "TIMEPOINT", "...1"))
 sp_ra_df <- remove_columns(sp_ra_df, c("SampleID", "TIMEPOINT", "...1"))
 
+# rename the columns
+genus_ra_df <- rename_columns_species_to_domain(genus_ra_df)
+sp_ra_df <- rename_columns_species_to_domain(sp_ra_df)
+
 # describe the data
 genus_ra_df_stats <- describe(genus_ra_df)
 species_ra_df_stats <- describe(sp_ra_df)
@@ -656,8 +693,8 @@ species_results_no_latent <- train_and_save_models(
 
 # remove the latent variables from the genus and species dataframes except for the target variable
 
-genus_df_imputed_no_latent <- remove_columns(genus_df_imputed_minus_redundant, latent_variables_to_use[-which(latent_variables_to_use %in% c("diff_std_bmi_score"))])
-species_df_imputed_no_latent <- remove_columns(species_df_imputed_minus_redundant, latent_variables_to_use[-which(latent_variables_to_use %in% c("diff_std_bmi_score"))])
+genus_df_imputed_no_latent <- remove_columns(genus_df_imputed, latent_variables_to_use[-which(latent_variables_to_use %in% c("diff_std_bmi_score"))])
+species_df_imputed_no_latent <- remove_columns(species_df_imputed, latent_variables_to_use[-which(latent_variables_to_use %in% c("diff_std_bmi_score"))])
 
 print(colnames(genus_df_imputed_no_latent))
 print(head(genus_df_imputed_no_latent))
@@ -737,7 +774,7 @@ pathway_results_minus_rendundant <- train_and_save_models(
 )
 
 # remove the latent variables from the genus and species dataframes except for the target variable
-pathway_df_no_latent <- remove_columns(pathway_df_minus_redundant, columns_to_remove = latent_variables_to_use[-which(latent_variables_to_use %in% c("diff_std_bmi_score"))])
+pathway_df_no_latent <- remove_columns(pathway_df, columns_to_remove = latent_variables_to_use[-which(latent_variables_to_use %in% c("diff_std_bmi_score"))])
 
 pathway_df_no_latent_results <- train_and_save_models(
     pathway_df_no_latent,
@@ -746,6 +783,14 @@ pathway_df_no_latent_results <- train_and_save_models(
     "pathway_regression_no_latent"
 )
 
+pathway_df_minus_redundant_no_latent <- remove_columns(pathway_df_minus_redundant, columns_to_remove = latent_variables_to_use[-which(latent_variables_to_use %in% c("diff_std_bmi_score"))])
+
+pathway_df_minus_redundant_no_latent_results <- train_and_save_models(
+    pathway_df_minus_redundant_no_latent,
+    "diff_std_bmi_score",
+    train_control,
+    "pathway_regression_no_redundant_no_latent"
+)
 
 ###############################
 ###
@@ -1001,7 +1046,9 @@ create_feature_plot <- function(features, title, save_path) {
 
     # Print and save the plot
     print(feature_plot)
-    ggsave(save_path, plot = feature_plot, dpi = 600, bg = "white")
+    pdf(file = save_path, width = 10, height = 10)
+    print(feature_plot)
+    dev.off()
 }
 
 # Function to extract top features
@@ -1061,7 +1108,7 @@ get_top_models <- function(dataset, top_n = 3) {
 }
 
 # In[3]: Define base path and file paths ----
-base_path <- "/drift_fs/csv/results/"
+base_path <- "drift_fs/csv/results"
 
 # Define file paths in a structured list
 file_paths <- list(
@@ -1329,8 +1376,9 @@ genus_titles <- c(
 )
 # Generate combined genus plot
 combined_plot_genus <- create_plots(genus_data_list, max_r2, genus_titles)
+pdf("drift_fs/figures/genus_combined_plot.pdf", width = 7, height = 7)
 print(combined_plot_genus)
-ggsave("drift_fs/figures/genus_combined_plot.png", plot = combined_plot_genus, dpi = 600, bg = "white")
+dev.off()
 
 # Prepare data and titles for species
 species_data_list <- list(species_results[[1]]$metrics, species_results[[2]]$metrics, species_results[[3]]$metrics)
@@ -1347,8 +1395,9 @@ species_data_list[[3]]$Model <- c("Lasso", "Ridge", "Elastic Net", "Random Fores
 
 # Generate combined species plot
 combined_plot_species <- create_plots(species_data_list, max_r2, species_titles)
+pdf("drift_fs/figures/species_combined_plot.pdf", width = 7, height = 7)
 print(combined_plot_species)
-ggsave("drift_fs/figures/species_combined_plot.png", plot = combined_plot_species, dpi = 600, bg = "white")
+dev.off()
 
 # Prepare data and titles for pathway
 pathway_data_list <- list(pathway_results[[1]]$metrics, pathway_results[[2]]$metrics, pathway_results[[3]]$metrics)
@@ -1365,8 +1414,9 @@ pathway_data_list[[3]]$Model <- c("Lasso", "Ridge", "Elastic Net", "Random Fores
 
 # Generate combined pathway plot
 combined_plot_pathway <- create_plots(pathway_data_list, max_r2, pathway_titles)
+pdf("drift_fs/figures/pathway_combined_plot.pdf", width = 7, height = 7)
 print(combined_plot_pathway)
-ggsave("drift_fs/figures/pathway_combined_plot.png", plot = combined_plot_pathway, dpi = 600, bg = "white")
+dev.off()
 
 # because of this plot we will hence forth use the
 # genus no rendundant
@@ -1430,19 +1480,19 @@ species_no_rendundant_features <- species_no_rendundant_features %>%
 create_feature_plot(
     genus_no_rendundant_features,
     "Top 10 Features - Non Redundant Genus + Clinical Variables",
-    "drift_fs/figures/genus_no_rendundant_feature_plot.png"
+    "drift_fs/figures/genus_no_rendundant_feature_plot.pdf"
 )
 
 create_feature_plot(
     pathway_features,
     "Top 10 Features - All Pathways + Clinical Variables",
-    "drift_fs/figures/pathway_feature_plot.png"
+    "drift_fs/figures/pathway_feature_plot.pdf"
 )
 
 create_feature_plot(
     species_no_rendundant_features,
     "Top 10 Features - Non Redundant Species + Clinical Variables",
-    "drift_fs/figures/species_no_rendundant_feature_plot.png"
+    "drift_fs/figures/species_no_rendundant_feature_plot.pdf"
 )
 
 # In[12]: Plotting the venn diagrams of the top features ----
@@ -1483,7 +1533,7 @@ ggvenn(
     text_size = 10, set_name_size = 15
 )
 
-ggsave("drift_fs/figures/genus_venn_diagrams.png", dpi = 600, bg = "white")
+pdf("drift_fs/figures/genus_venn_diagrams.pdf", width = 10, height = 10)
 
 species_lasso <- top_features_list[["Species (No Redundant)"]]$lasso_model$Variable
 species_enet <- top_features_list[["Species (No Redundant)"]]$elastic_net_model$Variable
@@ -1497,7 +1547,7 @@ ggvenn(
     show_percentage = FALSE,
     text_size = 10, set_name_size = 15
 ) 
-ggsave("drift_fs/figures/species_venn_diagrams.png", dpi = 600, bg = "white")
+pdf("drift_fs/figures/species_venn_diagrams.pdf", width = 10, height = 10)
 
 pathway_lasso <- top_features_list[["Pathway"]]$lasso_model$Variable
 pathway_enet <- top_features_list[["Pathway"]]$elastic_net_model$Variable
@@ -1511,5 +1561,4 @@ ggvenn(
     show_percentage = FALSE,
     text_size = 10, set_name_size = 15
 )
-ggsave("drift_fs/figures/pathways_venn_diagrams.png", dpi = 600, bg = "white")
-
+pdf("drift_fs/figures/pathway_venn_diagrams.pdf", width = 10, height = 10)
